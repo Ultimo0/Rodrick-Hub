@@ -180,17 +180,26 @@ function renderBottomTabBar() {
  * concernée ; sinon elle disparaît toute seule après quelques secondes.
  */
 function showToast(message, url) {
-  const toast = document.createElement('div');
+  const toast = document.createElement('aside');
   toast.className = 'hub-toast';
-  toast.textContent = message;
-  toast.addEventListener('click', () => { location.href = url; });
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toast.innerHTML = `
+    <a class="hub-toast-link" href="${url}"><span>${message}</span><span class="hub-toast-arrow" aria-hidden="true">→</span></a>
+    <button class="hub-toast-close" type="button" aria-label="Fermer la notification">×</button>
+    <span class="hub-toast-progress" aria-hidden="true"></span>
+  `;
+  const removeToast = () => {
+    toast.classList.remove('is-visible');
+    setTimeout(() => toast.remove(), 300);
+  };
+  toast.querySelector('.hub-toast-close').addEventListener('click', removeToast);
   document.body.appendChild(toast);
 
   requestAnimationFrame(() => toast.classList.add('is-visible'));
 
   setTimeout(() => {
-    toast.classList.remove('is-visible');
-    setTimeout(() => toast.remove(), 300);
+    removeToast();
   }, 6000);
 }
 

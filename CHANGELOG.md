@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.14
+
+### Dashboard des instances
+- **Mise à jour ciblée au lieu d'une reconstruction complète :** à chaque heartbeat, seules les cartes (et les textes) qui ont réellement changé sont modifiées. Le pouls animé des cartes ne repart plus de zéro, le focus clavier et le survol sont conservés, et le panneau de détails ne remonte plus en haut de son défilement.
+- **Compteurs du résumé :** ils ne repassent plus par 0 à chaque mise à jour ; un chiffre n'est animé que s'il change, depuis sa valeur précédente.
+- **Bouton Désactiver/Réactiver :** son libellé reflète toujours le nouvel état après l'action.
+- **Technique :** nouveau module `public/js/dom-patch.js` (sans dépendance) et test `test/dom-patch.test.js` (nécessite `jsdom` en devDependency, ignoré s'il est absent).
+
 ## 0.9.13
 
 ### Interface comptes

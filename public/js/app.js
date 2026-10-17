@@ -4,6 +4,7 @@ import {
   formatDateTime,
   ytDlpRefreshLabel,
 } from './ui-utils.js';
+import { patchHtml, patchKeyedList } from './dom-patch.js';
 
 const accessGate = document.getElementById('instanceAccessGate');
 const adminContent = document.getElementById('instanceAdminContent');
@@ -26,6 +27,7 @@ let feedbackTimer;
 let selectedInstanceId = null;
 let detailsOpener = null;
 let isAdminSession = false;
+let knownOnlineStates = new Map();
 
 // L’ancienne interface stockait la clé technique partagée avec les bots
 // dans localStorage. Les pages admin utilisent maintenant la session Hub.
@@ -129,9 +131,13 @@ function connectionHealthHtml(inst) {
   `;
 }
 
-function instanceCardHtml(inst) {
+function instanceCardHtml(inst, index = 0) {
   const enabled = inst.enabled !== false;
   const online = inst.online === true;
+  const previousOnline = knownOnlineStates.get(inst.instanceId);
+  const statusChange = previousOnline === undefined || previousOnline === online
+    ? ''
+    : online ? 'has-come-online' : 'has-gone-offline';
   // Le bouton 🗑️ n'apparaît que pour les copies hors ligne : pensé pour
   // nettoyer le dashboard des instances mortes en permanence, pas pour
   // supprimer une copie active par erreur.
@@ -140,7 +146,7 @@ function instanceCardHtml(inst) {
     : '';
 
   return `
-    <article class="instance-card ${enabled ? '' : 'disabled-card'}">
+    <article class="instance-card ${enabled ? '' : 'disabled-card'} ${statusChange}" data-instance-id="${escapeHtml(inst.instanceId)}" style="--card-index:${index}">
       <div class="top">
         <div>
           <div class="owner">${escapeHtml(inst.ownerName)}</div>
@@ -287,7 +293,7 @@ function renderInstanceDetails() {
     if (detailsDialog.open) detailsDialog.close();
     return;
   }
-  detailsContent.innerHTML = instanceDetailsHtml(instance);
+  patchHtml(detailsContent, instanceDetailsHtml(instance));
 }
 
 function renderAccessGate(title, message, action) {
@@ -340,17 +346,64 @@ async function initializeDashboard() {
   }
 }
 
+function animateSummaryValue(element, from, target) {
+  const formatter = new Intl.NumberFormat('fr-FR');
+  // Un nouveau changement pendant une animation reprend la main : sinon deux
+  // animations écriraient en même temps dans le même élément.
+  const token = (element._summaryToken = (element._summaryToken || 0) + 1);
+
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    element.textContent = formatter.format(target);
+    return;
+  }
+
+  const startedAt = performance.now();
+  const duration = 460;
+  const tick = (now) => {
+    if (element._summaryToken !== token) return;
+    const progress = Math.min(1, (now - startedAt) / duration);
+    // Décélération progressive : le chiffre ne s'arrête pas brutalement.
+    const eased = 1 - Math.pow(1 - progress, 3);
+    element.textContent = formatter.format(Math.round(from + (target - from) * eased));
+    if (progress < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+const SUMMARY_STATS = [
+  { tone: 'total', label: 'Instances' },
+  { tone: 'online', label: 'En ligne' },
+  { tone: 'offline', label: 'Hors ligne' },
+  { tone: 'disabled', label: 'Désactivées' },
+];
+
+// Les quatre tuiles sont créées une seule fois ; ensuite on ne touche qu'à un
+// chiffre qui a réellement changé, en l'animant depuis sa valeur précédente
+// (avant : tout repartait de 0 à chaque heartbeat de n'importe quelle instance).
 function renderSummary() {
   const onlineCount = allInstances.filter((instance) => instance.online === true).length;
   const disabledCount = allInstances.filter((instance) => instance.enabled === false).length;
-  const offlineCount = allInstances.length - onlineCount;
+  const values = {
+    total: allInstances.length,
+    online: onlineCount,
+    offline: allInstances.length - onlineCount,
+    disabled: disabledCount,
+  };
 
-  summary.innerHTML = `
-    <div class="stat" data-tone="total"><div class="value">${allInstances.length}</div><div class="label">Instances</div></div>
-    <div class="stat" data-tone="online"><div class="value">${onlineCount}</div><div class="label">En ligne</div></div>
-    <div class="stat" data-tone="offline"><div class="value">${offlineCount}</div><div class="label">Hors ligne</div></div>
-    <div class="stat" data-tone="disabled"><div class="value">${disabledCount}</div><div class="label">Désactivées</div></div>
-  `;
+  if (summary.children.length !== SUMMARY_STATS.length) {
+    summary.innerHTML = SUMMARY_STATS.map(({ tone, label }) => `
+      <div class="stat" data-tone="${tone}"><div class="value" data-count="0">0</div><div class="label">${label}</div></div>
+    `).join('');
+  }
+
+  for (const { tone } of SUMMARY_STATS) {
+    const element = summary.querySelector(`[data-tone="${tone}"] .value`);
+    const from = Number(element.dataset.count);
+    const target = values[tone];
+    if (from === target) continue;
+    element.dataset.count = String(target);
+    animateSummaryValue(element, from, target);
+  }
 }
 
 function updateFilterButtons() {
@@ -370,7 +423,12 @@ function renderInstances() {
   resultCountEl.textContent = `${visible.length} sur ${allInstances.length} instance${allInstances.length === 1 ? '' : 's'}`;
   emptyEl.hidden = allInstances.length > 0;
   noResultsEl.hidden = allInstances.length === 0 || visible.length > 0;
-  grid.innerHTML = visible.map(instanceCardHtml).join('');
+  patchKeyedList(grid, visible, {
+    keyOf: (instance) => instance.instanceId,
+    htmlOf: instanceCardHtml,
+    keyAttr: 'data-instance-id',
+  });
+  knownOnlineStates = new Map(allInstances.map((instance) => [instance.instanceId, instance.online === true]));
 }
 
 async function refresh(showSuccess = false) {
@@ -423,6 +481,7 @@ async function refresh(showSuccess = false) {
 
 async function toggleInstance(instanceId, enabled, button) {
   const originalText = button.textContent;
+  let succeeded = false;
   button.disabled = true;
   button.textContent = 'Mise à jour…';
   try {
@@ -437,23 +496,26 @@ async function toggleInstance(instanceId, enabled, button) {
       showFeedback(data.error || 'Impossible de changer le statut. Vérifie ta session administrateur.', true);
       return;
     }
+    succeeded = true;
     showFeedback(enabled ? 'Instance réactivée.' : 'Instance désactivée.');
     await refresh();
   } catch {
     showFeedback('Impossible de contacter le serveur pour modifier cette instance.', true);
   } finally {
-    if (button.isConnected) {
+    // En cas de succès, refresh() a déjà mis à jour ce même bouton (nouveau
+    // libellé, plus de "disabled") : y remettre l'ancien texte serait faux.
+    if (button.isConnected && !succeeded) {
       button.disabled = false;
       button.textContent = originalText;
     }
   }
 }
 
-// Un prompt() natif plutôt qu'un <input> dans la carte : refresh() reconstruit
-// toute la grille (grid.innerHTML) à CHAQUE heartbeat de n'importe quelle
-// instance — un champ de saisie intégré à la carte serait vidé en pleine
-// frappe. prompt() vit hors du DOM de la grille, et reste cohérent avec les
-// confirm() déjà utilisé ici.
+// Un prompt() natif plutôt qu'un <input> dans la carte : dom-patch.js ne
+// gère pas la valeur saisie dans un <input> (elle n'est pas un attribut), et
+// un champ intégré à la carte pourrait être écrasé en pleine frappe par un
+// heartbeat. prompt() vit hors du DOM de la grille, et reste cohérent avec
+// les confirm() déjà utilisés ici.
 async function changeRemotePrefix(instanceId, currentPrefix) {
   const answer = prompt(
     `Nouveau préfixe pour "${instanceId}" (actuel : "${currentPrefix}").\n` +
