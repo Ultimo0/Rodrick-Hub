@@ -16,8 +16,10 @@ import { postsRouter } from './src/routes/posts.js';
 import { statsRouter } from './src/routes/stats.js';
 import { profileRouter } from './src/routes/profile.js';
 import { notificationsRouter } from './src/routes/notifications.js';
+import { linkRouter } from './src/routes/link.js';
 import { pushRouter } from './src/routes/push.js';
 import { initRealtime } from './src/realtime.js';
+import { startInstanceStatusWatcher } from './src/instanceStatusWatcher.js';
 
 warnIfMisconfigured();
 
@@ -97,6 +99,7 @@ app.use('/api', postsRouter);
 app.use('/api', statsRouter);
 app.use('/api', profileRouter);
 app.use('/api', notificationsRouter);
+app.use('/api', linkRouter);
 app.use('/api', pushRouter);
 app.use('/api', errorReportsRouter);
 
@@ -170,3 +173,7 @@ async function runErrorReportCleanup() {
 
 runErrorReportCleanup();
 setInterval(runErrorReportCleanup, 24 * 60 * 60 * 1000);
+
+// Prévient les propriétaires (cloche + push) quand l'un de leurs bots passe
+// hors ligne ou revient — voir src/instanceStatusWatcher.js.
+startInstanceStatusWatcher();

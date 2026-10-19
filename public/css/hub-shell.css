@@ -1,0 +1,454 @@
+/* =========================================================
+   Rodrick Hub — "coque" d'interface (chargée APRÈS style.css)
+   Inspirée des applis vidéo mobiles : fond noir/blanc franc, texte net,
+   un seul accent vif, icônes épaisses, grandes zones tactiles, barre
+   d'onglets en bas et barre du haut minimale (cloche + avatar).
+
+   Pourquoi un fichier à part plutôt que de modifier style.css (2500
+   lignes) : style.css pilote déjà TOUTES ses couleurs par variables
+   (--bg, --card, --violet...). Redéfinir ces variables ici re-colore
+   tout le Hub d'un coup, et un seul fichier à retirer suffit pour
+   revenir à l'ancien rendu.
+
+   Thème : automatique, selon le réglage clair/sombre de l'appareil
+   (prefers-color-scheme) — aucun sélecteur à gérer.
+   ========================================================= */
+
+:root,
+.landing-body {
+  --bg: #ffffff;
+  --grid-line: transparent;
+
+  --card: #f4f4f5;
+  --card-solid: #f4f4f5;
+  --card-hover: #ebebed;
+  --border: rgba(22, 24, 35, 0.12);
+  --border-strong: rgba(22, 24, 35, 0.28);
+
+  --text: #161823;
+  --muted: #5f6370;
+  --muted-dim: #8a8d99;
+
+  --violet: #fe2c55;
+  --violet-deep: #e11d48;
+  --violet-glow: #fe2c5533;
+  --teal: #0fa968;
+  --teal-glow: #0fa96833;
+  --coral: #e5383b;
+  --coral-glow: #e5383b33;
+  --amber: #d98e04;
+  --amber-glow: #d98e0433;
+  --sky: #2563eb;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --font-display: -apple-system, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body: -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  .landing-body {
+    --bg: #000000;
+    --grid-line: transparent;
+
+    --card: #161616;
+    --card-solid: #161616;
+    --card-hover: #222222;
+    --border: rgba(255, 255, 255, 0.12);
+    --border-strong: rgba(255, 255, 255, 0.28);
+
+    --text: #ffffff;
+    --muted: #a9acb8;
+    --muted-dim: #70737f;
+
+    --violet: #fe2c55;
+    --violet-deep: #ff5c7c;
+    --violet-glow: #fe2c5540;
+    --teal: #25d695;
+    --teal-glow: #25d69540;
+    --coral: #ff5a5f;
+    --coral-glow: #ff5a5f40;
+    --amber: #ffb340;
+    --amber-glow: #ffb34040;
+    --sky: #5aa2ff;
+  }
+}
+
+body,
+.landing-body { background: var(--bg); }
+
+/* Un <button> ou une carte cliquable sans couleur propre prenait le noir par
+   défaut du navigateur : lisible sur l'ancien fond clair, invisible sur noir. */
+button { color: inherit; }
+.post-card { color: var(--text); }
+
+/* ---------- Barre du haut ---------- */
+
+.page > .hub-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.hub-nav a.active,
+.hub-nav a[aria-current="page"] {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.auth-status { margin-left: 0; }
+.hub-nav .hub-bell + .auth-status { margin-left: 0; }
+.hub-nav-links { margin-right: auto; }
+.landing-nav .hub-bell { margin-left: auto; }
+
+/* ---------- Cloche ---------- */
+
+.hub-bell { position: relative; display: flex; align-items: center; }
+
+.hub-bell-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hub-bell-btn:hover { background: var(--card-hover); }
+.hub-bell-btn[aria-expanded="true"] { background: var(--card-hover); }
+.hub-bell-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.hub-bell-btn svg { width: 24px; height: 24px; }
+
+.hub-bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 2px solid var(--bg);
+  border-radius: 999px;
+  background: var(--violet);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+}
+
+.hub-bell-badge[hidden] { display: none; }
+
+.hub-bell-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 70;
+  width: min(92vw, 372px);
+  background: var(--card-solid);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.hub-bell-panel[hidden] { display: none; }
+
+.hub-bell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hub-bell-head strong { font-family: var(--font-display); font-size: 1rem; }
+
+.hub-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.hub-switch-label { font-size: 0.74rem; font-weight: 600; color: var(--muted); }
+
+.hub-switch-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hub-switch-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background 0.18s ease;
+}
+
+.hub-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease;
+}
+
+.hub-switch-input:checked + .hub-switch-track { background: var(--teal); }
+.hub-switch-input:checked + .hub-switch-track::after { transform: translateX(18px); }
+.hub-switch-input:focus-visible + .hub-switch-track { outline: 2px solid var(--text); outline-offset: 2px; }
+.hub-switch-input:disabled + .hub-switch-track { opacity: 0.45; }
+.hub-switch:has(.hub-switch-input:disabled) { cursor: not-allowed; }
+
+.hub-bell-hint {
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--card-hover);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.hub-bell-hint[hidden], .hub-bell-empty[hidden] { display: none; }
+
+.hub-bell-list { margin: 0; padding: 0; list-style: none; }
+.hub-bell-list li + li { border-top: 1px solid var(--border); }
+
+/* ".hub-bell" devant chaque sélecteur : la cloche vit DANS .hub-nav, dont la
+   règle ".hub-nav a" (couleur grisée, filet du bas, grand padding) s'applique
+   sinon aux liens du panneau. */
+.hub-bell .hub-bell-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 0;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: inherit;
+  text-decoration: none;
+}
+
+.hub-bell .hub-bell-item:hover, .hub-bell .hub-bell-item:focus-visible { background: var(--card-hover); outline: none; }
+.hub-bell .hub-bell-item.is-new { background: var(--card-hover); box-shadow: inset 3px 0 0 var(--violet); }
+
+.hub-bell-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--card-hover);
+  color: var(--text);
+}
+
+.hub-bell-item-icon svg { width: 20px; height: 20px; }
+.hub-bell-item-icon-release { background: var(--violet-glow); color: var(--violet); }
+.hub-bell-item-icon-post { background: color-mix(in srgb, var(--sky) 20%, transparent); color: var(--sky); }
+.hub-bell-item-icon-bot-online { background: var(--teal-glow); color: var(--teal); }
+.hub-bell-item-icon-bot-offline { background: var(--coral-glow); color: var(--coral); }
+.hub-bell-item-icon-bot-linked { background: var(--teal-glow); color: var(--teal); }
+
+.hub-bell-item-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hub-bell .hub-bell-item-title { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.hub-bell .hub-bell-item-body { font-size: 0.82rem; font-weight: 500; color: var(--muted); overflow-wrap: anywhere; }
+.hub-bell .hub-bell-item-time { font-size: 0.72rem; font-weight: 500; color: var(--muted-dim); }
+
+.hub-bell-empty { margin: 0; padding: 26px 16px; text-align: center; font-size: 0.86rem; color: var(--muted); }
+
+/* ---------- Mes bots ---------- */
+
+.my-bots { margin: 16px 0 22px; }
+.my-bots[hidden] { display: none; }
+
+.my-bots-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.my-bots-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
+.mybots-summary { font-size: 0.82rem; font-weight: 700; color: var(--muted); }
+.mybots-summary[hidden], .mybots-empty[hidden] { display: none; }
+.mybots-empty { margin: 0; padding: 16px; border: 1px dashed var(--border-strong); border-radius: var(--radius); color: var(--muted); font-size: 0.88rem; }
+
+.mybots-list {
+  display: flex;
+  gap: 12px;
+  padding-bottom: 6px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.mybots-list::-webkit-scrollbar { display: none; }
+
+.mybot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  width: min(78vw, 270px);
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  scroll-snap-align: start;
+}
+
+.mybot-ring {
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 3px solid var(--muted-dim);
+  border-radius: 50%;
+}
+
+.mybot-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--card-hover);
+  color: var(--text);
+}
+
+.mybot-avatar svg { width: 22px; height: 22px; }
+
+.mybot-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--card);
+  border-radius: 50%;
+  background: var(--muted-dim);
+  box-sizing: border-box;
+}
+
+.mybot.is-online .mybot-ring { border-color: var(--teal); }
+.mybot.is-online .mybot-dot { background: var(--teal); animation: mybot-pulse 2.2s ease-out infinite; }
+.mybot.is-offline .mybot-ring { border-color: var(--coral); }
+.mybot.is-offline .mybot-dot { background: var(--coral); }
+.mybot.is-disabled .mybot-ring { border-style: dashed; }
+.mybot.is-disabled .mybot-avatar { color: var(--muted-dim); }
+
+.mybot-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mybot-name { font-size: 0.95rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mybot-status { font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+.mybot.is-online .mybot-status { color: var(--teal); }
+.mybot.is-offline .mybot-status { color: var(--coral); }
+.mybot-meta { font-size: 0.72rem; color: var(--muted-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@keyframes mybot-pulse {
+  0% { box-shadow: 0 0 0 0 var(--teal-glow); }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mybot.is-online .mybot-dot { animation: none; }
+  .hub-switch-track, .hub-switch-track::after { transition: none; }
+}
+
+/* ---------- Mobile : avatar seul en haut, barre d'onglets façon appli ---------- */
+
+@media (max-width: 640px) {
+  .page > .hub-nav { min-height: 52px; }
+
+  /* L'avatar suffit : le nom reste lisible sur la page Profil. */
+  .auth-status a.nav-profile-link { flex-direction: row; font-size: 0; gap: 0; padding: 0; }
+  .nav-profile-link .nav-avatar,
+  .nav-profile-link .nav-avatar-fallback { width: 34px; height: 34px; }
+  .nav-profile-link .nav-avatar-fallback { font-size: 0.95rem; }
+  .auth-status { padding: 6px 4px 6px 0; gap: 8px; }
+  .auth-status .admin-nav-link { font-size: 0.78rem; }
+
+  /* Le panneau se cale sous la barre, sur presque toute la largeur. */
+  .hub-bell { position: static; }
+  .hub-bell-panel {
+    position: fixed;
+    top: calc(52px + env(safe-area-inset-top, 0px));
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+
+  .hub-tabbar {
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+  }
+
+  .hub-tabbar a { height: 56px; min-width: 0; padding: 0 1px; font-size: 0.6rem; font-weight: 600; color: var(--muted); }
+  .hub-tabbar-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hub-tabbar a.active { color: var(--text); font-weight: 800; }
+  .hub-tabbar-icon svg { width: 26px; height: 26px; }
+  .hub-tabbar a.active .hub-tabbar-icon svg { stroke-width: 2.6; }
+  .hub-tabbar-icon-wrap .nav-badge-dot { background: var(--violet); border-color: var(--bg); }
+}
+
+/* ---------- Page "Relier un bot" (link.html) ---------- */
+
+.link-stage { display: grid; place-items: center; padding: 28px 0; }
+
+.link-card {
+  width: min(100%, 440px);
+  padding: 28px 22px;
+  text-align: center;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.link-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: var(--violet-glow);
+  color: var(--violet);
+}
+
+.link-icon svg { width: 30px; height: 30px; }
+.link-card h2 { margin: 0 0 8px; font-family: var(--font-display); font-size: 1.3rem; }
+.link-text { margin: 0 0 20px; color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+.link-actions { display: flex; flex-direction: column; gap: 10px; }
+
+.link-action {
+  display: block;
+  padding: 14px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--card-hover);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link-action-primary { background: var(--violet); border-color: var(--violet); color: #fff; }
+.link-action:disabled { opacity: 0.6; cursor: wait; }
+.link-action:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }

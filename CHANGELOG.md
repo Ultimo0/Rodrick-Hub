@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.11.0
+
+### Liaison automatique des bots aux comptes
+- **Plus de numéro ni de code à saisir.** Le bot (1.82.36 ou plus) envoie lui-même, dans le chat « Vous » de son propriétaire, un lien personnel valable 7 jours et à usage unique. Le propriétaire le touche, se connecte ou crée son compte, confirme d'un appui, et le bot apparaît dans « Mes bots ».
+- **Ses autres bots sont reliés d'office**, présents ou futurs : une fois le propriétaire prouvé, chaque bot qui envoie un heartbeat avec la même empreinte est rattaché au compte, avec une notification « Bot relié ».
+- **Confidentialité :** le Hub ne reçoit ni ne stocke jamais de numéro, seulement une empreinte (HMAC) calculée par le bot. Les jetons ne sont stockés que sous forme d'empreinte SHA-256 ; la liste admin des instances n'expose pas l'empreinte.
+- **Garde-fous :** un lien invalide, utilisé ou expiré est expliqué à l'écran ; un propriétaire déjà prouvé pour un compte ne peut pas être réclamé par un autre ; un nouveau lien annule le précédent ; la confirmation est toujours explicite (un lien piégé ouvert par quelqu'un de connecté ne lui ajoute pas de bot étranger).
+- **Page `link.html`** (aperçu du bot, connexion ou inscription puis retour automatique, confirmation). `login.js` et `register.js` ramènent à cette page quand la personne vient d'un lien.
+- **Serveur :** `POST /api/link/invite` (clé API, appelée par le bot), `GET /api/link/preview`, `POST /api/link/claim` ; le heartbeat accepte `ownerHash` et répond `link: { linked, inviteSent }`. Nouvelles tables `link_tokens` et `user_owner_hashes`, colonnes `ownerHash` et `linkInviteSentAt`, créées au démarrage.
+- **Tests :** jetons, page du lien (jsdom), et un test de bout en bout sur Postgres (32 vérifications) couvrant aussi le contrat avec le module du bot.
+
+### Pas encore fait
+- Pas de bouton pour détacher un bot de son compte.
+- La page Communauté en flux vertical.
+
+## 0.10.0
+
+### Nouvelle interface (première étape)
+- **Cloche de notifications** dans la barre du haut de chaque page, pour les comptes connectés : badge des non lues, panneau avec les 3 dernières notifications (nouvelle version, nouvelle publication, un de tes bots passe hors ligne ou revient) et interrupteur pour activer ou désactiver les alertes push sur l'appareil. Le bouton du profil reste, et agit sur le même réglage.
+- **« Mes bots »** sur l'accueil : état en direct (en ligne, hors ligne, désactivé) de chacun des bots rattachés au compte.
+- **Nouveau style** inspiré des applis vidéo mobiles : fond noir ou blanc franc, un seul accent, barre d'onglets plus lisible, avatar seul en haut sur mobile. Le thème clair ou sombre suit automatiquement l'appareil. Tout le style est dans `public/css/hub-shell.css` : retirer ce fichier des pages rétablit l'ancien rendu.
+
+### Serveur
+- Table `notifications` (historique, purgé à 30 jours) et colonnes `userId` / `statusNotified` sur `instances`, créées automatiquement au démarrage.
+- `GET /api/notifications` (3 dernières + non lues), `GET /api/me/instances` (uniquement les bots du compte, liste blanche de champs).
+- Surveillance des bots rattachés à un compte (`src/instanceStatusWatcher.js`) : une alerte à chaque **changement** d'état seulement, jamais répétée ; la première observation d'un bot n'alerte pas, et les alertes « hors ligne » sont retenues juste après un redémarrage du Hub pour éviter une fausse alerte générale.
+- Notification par compte en temps réel (`sendToUser`) et push ciblé (`sendPushToUser`).
+
+### Corrections
+- Les titres des cartes de la page Communauté prenaient le noir par défaut du navigateur (illisibles sur fond noir).
+
+### Pas encore fait
+- Le rattachement automatique des bots aux comptes (message WhatsApp envoyé par le bot) arrive à l'étape suivante : d'ici là « Mes bots » reste vide, sauf rattachement manuel (voir LISEZ-MOI).
+- La page Communauté en flux vertical.
+
 ## 0.9.14
 
 ### Dashboard des instances

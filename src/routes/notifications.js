@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
-import { getSeenMap, markSeen, SECTIONS } from '../store/notificationsStore.js';
+import {
+  getSeenMap,
+  markSeen,
+  SECTIONS,
+  listLatestNotifications,
+  countUnreadNotifications,
+} from '../store/notificationsStore.js';
 import { getLatestTimestamp as getLatestReleaseTimestamp } from '../store/releasesStore.js';
 import { getLatestTimestamp as getLatestPostTimestamp } from '../store/postsStore.js';
 import { ah } from '../utils/asyncHandler.js';
@@ -41,4 +47,17 @@ notificationsRouter.post('/notifications/seen', requireAuth, ah(async (req, res)
 
   await markSeen(req.session.userId, section);
   res.json({ ok: true });
+}));
+
+/**
+ * Contenu de la cloche : les 3 dernières notifications visibles par ce
+ * compte et le nombre de non lues (depuis la dernière ouverture du
+ * panneau — voir POST /notifications/seen avec section "inbox").
+ */
+notificationsRouter.get('/notifications', requireAuth, ah(async (req, res) => {
+  const [notifications, unread] = await Promise.all([
+    listLatestNotifications(req.session.userId),
+    countUnreadNotifications(req.session.userId),
+  ]);
+  res.json({ notifications, unread });
 }));

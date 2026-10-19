@@ -34,8 +34,8 @@ export async function upsertHeartbeat(inst) {
         "commandStats", "mode", "prefix", "nodeVersion", "lastSeen",
         "reconnectCount", "lastDisconnectCode", "lastDisconnectAt",
         "ytdlpLastRefreshAt", "ytdlpLastRefreshOk", "ytdlpVersion",
-        "groupCount", "activeFeatures", "appliedConfigVersion")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        "groupCount", "activeFeatures", "appliedConfigVersion", "ownerHash")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
      ON CONFLICT ("instanceId") DO UPDATE SET
        "ownerName" = EXCLUDED."ownerName",
        "botName" = EXCLUDED."botName",
@@ -55,7 +55,9 @@ export async function upsertHeartbeat(inst) {
        "ytdlpVersion" = EXCLUDED."ytdlpVersion",
        "groupCount" = EXCLUDED."groupCount",
        "activeFeatures" = EXCLUDED."activeFeatures",
-       "appliedConfigVersion" = EXCLUDED."appliedConfigVersion"
+       "appliedConfigVersion" = EXCLUDED."appliedConfigVersion",
+       -- Un bot pas encore mis à jour n'envoie pas d'empreinte : on garde l'ancienne.
+       "ownerHash" = COALESCE(EXCLUDED."ownerHash", instances."ownerHash")
      RETURNING *`,
     [
       inst.instanceId, inst.ownerName, inst.botName, inst.version,
@@ -69,6 +71,7 @@ export async function upsertHeartbeat(inst) {
       inst.ytdlpVersion, inst.groupCount,
       inst.activeFeatures ? JSON.stringify(inst.activeFeatures) : null,
       inst.appliedConfigVersion,
+      inst.ownerHash ?? null,
     ]
   );
   return rowToInstance(rows[0]);
@@ -133,4 +136,28 @@ export async function logHeartbeat(instanceId, messageCount) {
     `INSERT INTO heartbeat_log ("instanceId", "messageCount", "timestamp") VALUES ($1, $2, $3)`,
     [instanceId, messageCount ?? null, Date.now()]
   );
+}
+
+/** Les bots rattachés à ce compte — uniquement les champs utiles à son propre tableau de bord. */
+export async function listInstancesForUser(userId) {
+  const { rows } = await pool.query(
+    `SELECT "instanceId", "botName", "ownerName", "version", "lastSeen", "uptimeSeconds", "enabled"
+       FROM instances WHERE "userId" = $1
+      ORDER BY "botName", "instanceId"`,
+    [userId]
+  );
+  return rows.map((row) => ({ ...row, enabled: Boolean(row.enabled), lastSeen: Number(row.lastSeen) || 0 }));
+}
+
+/** Toutes les instances rattachées à un compte (pour la surveillance des changements d'état). */
+export async function listLinkedInstances() {
+  const { rows } = await pool.query(
+    `SELECT "instanceId", "userId", "botName", "ownerName", "lastSeen", "statusNotified"
+       FROM instances WHERE "userId" IS NOT NULL`
+  );
+  return rows;
+}
+
+export async function setStatusNotified(instanceId, status) {
+  await pool.query('UPDATE instances SET "statusNotified" = $2 WHERE "instanceId" = $1', [instanceId, status]);
 }

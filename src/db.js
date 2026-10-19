@@ -284,6 +284,61 @@ async function initSchema() {
     -- GET /api/error-reports devraient parcourir la table entière — même
     -- raisonnement que heartbeat_log_timestamp_idx ci-dessus.
     CREATE INDEX IF NOT EXISTS error_reports_last_seen_idx ON error_reports ("lastSeenAt");
+
+    -- Rattachement d'une instance (un bot) à un compte du Hub, et dernier
+    -- état (online/offline) pour lequel on a déjà prévenu son propriétaire :
+    -- c'est ce qui permet de ne notifier QU'UN changement d'état, jamais
+    -- chaque minute. NULL = instance pas (encore) liée à un compte.
+    -- ON DELETE SET NULL : supprimer un compte détache ses bots, il ne les efface pas.
+    ALTER TABLE instances ADD COLUMN IF NOT EXISTS "userId" INTEGER REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE instances ADD COLUMN IF NOT EXISTS "statusNotified" TEXT;
+    CREATE INDEX IF NOT EXISTS instances_user_idx ON instances ("userId");
+
+    -- Historique des notifications affichées par la cloche du Hub.
+    -- "userId" NULL = notification pour tout le monde (nouvelle version,
+    -- nouvelle publication) ; sinon elle ne concerne que ce compte (un de
+    -- ses bots passe hors ligne / revient en ligne). Une seule ligne par
+    -- événement, pas une par utilisateur : le volume reste minuscule.
+    CREATE TABLE IF NOT EXISTS notifications (
+      id          SERIAL PRIMARY KEY,
+      "userId"    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      type        TEXT NOT NULL,   -- 'release' | 'post' | 'bot-online' | 'bot-offline'
+      title       TEXT NOT NULL,
+      body        TEXT,
+      link        TEXT,
+      "createdAt" BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications ("userId", "createdAt" DESC);
+
+    -- Liaison automatique d'un bot à un compte (voir src/store/linkStore.js).
+    -- "ownerHash" : empreinte (HMAC) du numéro du propriétaire, calculée PAR LE
+    -- BOT — le Hub ne reçoit ni ne stocke jamais de numéro en clair.
+    -- "linkInviteSentAt" : le bot a déjà demandé son lien d'invitation (un seul
+    -- envoi automatique par instance ; ensuite c'est la commande !hub).
+    ALTER TABLE instances ADD COLUMN IF NOT EXISTS "ownerHash" TEXT;
+    ALTER TABLE instances ADD COLUMN IF NOT EXISTS "linkInviteSentAt" BIGINT;
+    CREATE INDEX IF NOT EXISTS instances_owner_hash_idx ON instances ("ownerHash");
+
+    -- Jetons d'invitation : seul le hash SHA-256 est stocké (une fuite de la
+    -- base ne donne aucun lien utilisable). Un jeton = usage unique + expiration.
+    CREATE TABLE IF NOT EXISTS link_tokens (
+      "tokenHash"  TEXT PRIMARY KEY,
+      "instanceId" TEXT NOT NULL REFERENCES instances("instanceId") ON DELETE CASCADE,
+      "ownerHash"  TEXT NOT NULL,
+      "createdAt"  BIGINT NOT NULL,
+      "expiresAt"  BIGINT NOT NULL,
+      "usedAt"     BIGINT
+    );
+    CREATE INDEX IF NOT EXISTS link_tokens_instance_idx ON link_tokens ("instanceId");
+
+    -- Propriétaires déjà PROUVÉS (le jeton reçu sur leur WhatsApp a été utilisé) :
+    -- c'est ce qui permet de relier automatiquement leurs autres bots.
+    -- Un propriétaire ne peut appartenir qu'à un seul compte (clé primaire).
+    CREATE TABLE IF NOT EXISTS user_owner_hashes (
+      "ownerHash"  TEXT PRIMARY KEY,
+      "userId"     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      "verifiedAt" BIGINT NOT NULL
+    );
   `);
 }
 

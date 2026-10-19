@@ -61,7 +61,11 @@ form.addEventListener('submit', async (e) => {
     // Inscription réussie = déjà connecté (voir src/routes/auth.js) —
     // direction le profil directement.
     window.authAssistant?.success();
-    window.location.href = 'profile.html';
+    // Arrivé ici depuis le lien d'un bot (voir js/link.js) : on y retourne
+    // pour confirmer la liaison, au lieu d'aller sur le profil.
+    let pendingLink = null;
+    try { pendingLink = sessionStorage.getItem('hubPendingLink'); } catch { /* stockage indisponible */ }
+    window.location.href = pendingLink ? 'link.html' : 'profile.html';
   } catch {
     errorEl.textContent = 'Impossible de contacter le serveur.';
     errorEl.style.display = 'block';

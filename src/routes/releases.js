@@ -5,6 +5,7 @@ import { requireAdmin } from '../middleware/requireAdmin.js';
 import { loadReleases, addRelease, getLatestRelease, getReleaseById, updateRelease, deleteReleases } from '../store/releasesStore.js';
 import { broadcast } from '../realtime.js';
 import { sendPushToAll } from '../push.js';
+import { createNotification } from '../store/notificationsStore.js';
 import { ah } from '../utils/asyncHandler.js';
 
 export const releasesRouter = Router();
@@ -52,6 +53,8 @@ releasesRouter.post('/releases', requireApiKey, ah(async (req, res) => {
   // notifications et n'ont pas le Hub ouvert en ce moment — les deux
   // canaux sont indépendants, l'un ne remplace pas l'autre.
   broadcast({ type: 'new-release', release });
+  createNotification({ type: 'release', title: 'Nouvelle version de RodrickBOT', body: `v${release.version} est disponible.`, link: '/releases.html' })
+    .catch((err) => console.error('Échec createNotification (release) :', err));
   sendPushToAll({
     title: 'Nouvelle version de RodrickBOT',
     body: `v${release.version} est disponible.`,

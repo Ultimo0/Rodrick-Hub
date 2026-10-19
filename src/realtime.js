@@ -88,3 +88,26 @@ export async function broadcastToAdmins(event) {
     }
   }));
 }
+
+/**
+ * Envoie un événement uniquement aux onglets ouverts par ce compte.
+ * Comme broadcastToAdmins, la session est relue au moment de l'envoi : une
+ * déconnexion prend effet sans attendre la fermeture du WebSocket.
+ */
+export async function sendToUser(userId, event) {
+  if (!wss || !adminSessionContext?.sessionStore) return;
+
+  const payload = JSON.stringify(event);
+  await Promise.all([...wss.clients].map(async (client) => {
+    if (client.readyState !== 1 || !client.sessionId) return;
+    if (String(client.sessionUserId) !== String(userId)) return;
+
+    try {
+      const storedSession = await getStoredSession(adminSessionContext.sessionStore, client.sessionId);
+      if (!storedSession || String(storedSession.userId) !== String(userId)) return;
+      if (client.readyState === 1) client.send(payload);
+    } catch {
+      // Une panne de session ne doit jamais empêcher le reste du traitement.
+    }
+  }));
+}

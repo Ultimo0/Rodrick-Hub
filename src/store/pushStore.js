@@ -27,6 +27,11 @@ export async function listSubscriptions() {
   return rows;
 }
 
+export async function listSubscriptionsForUser(userId) {
+  const { rows } = await pool.query('SELECT * FROM push_subscriptions WHERE "userId" = $1', [userId]);
+  return rows;
+}
+
 export async function hasSubscription(userId, endpoint) {
   const { rows } = await pool.query(
     'SELECT 1 FROM push_subscriptions WHERE "userId" = $1 AND endpoint = $2',

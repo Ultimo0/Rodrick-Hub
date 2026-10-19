@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { requireApiKey } from '../middleware/requireApiKey.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { sendToUser } from '../realtime.js';
 import {
   loadInstances,
+  listInstancesForUser,
   upsertHeartbeat,
   updateInstanceConfig,
   updateInstanceEnabled,
@@ -11,6 +13,8 @@ import {
   logHeartbeat,
 } from '../store/instancesStore.js';
 import { getLatestRelease } from '../store/releasesStore.js';
+import { autoLinkVerifiedOwner, linkStateOf } from '../store/linkStore.js';
+import { isValidOwnerHash } from '../utils/linkToken.js';
 import { OFFLINE_AFTER_MS } from '../config.js';
 import { broadcastToAdmins } from '../realtime.js';
 import { ah } from '../utils/asyncHandler.js';
@@ -44,7 +48,7 @@ instancesRouter.post('/heartbeat', requireApiKey, ah(async (req, res) => {
     messageCount, commandStats, mode, prefix, nodeVersion,
     reconnectCount, lastDisconnectCode, lastDisconnectAt,
     ytdlpLastRefreshAt, ytdlpLastRefreshOk, ytdlpVersion,
-    groupCount, activeFeatures, appliedConfigVersion,
+    groupCount, activeFeatures, appliedConfigVersion, ownerHash,
   } = req.body || {};
 
   if (!instanceId) {
@@ -89,8 +93,20 @@ instancesRouter.post('/heartbeat', requireApiKey, ah(async (req, res) => {
     // du heartbeat. appliedConfigVersion vient du bot (accusé de réception).
     appliedConfigVersion:
       Number.isInteger(appliedConfigVersion) && appliedConfigVersion >= 0 ? appliedConfigVersion : null,
+    // Empreinte du propriétaire (voir src/store/linkStore.js) : ignorée si elle
+    // n'a pas la forme attendue, jamais un motif de refus du heartbeat.
+    ownerHash: isValidOwnerHash(ownerHash) ? ownerHash : null,
   };
   const saved = await upsertHeartbeat(instance);
+
+  // Propriétaire déjà prouvé (un autre de ses bots a été relié) : liaison d'office.
+  if (saved.userId == null && saved.ownerHash) {
+    const linkedUserId = await autoLinkVerifiedOwner(instanceId, saved.ownerHash);
+    if (linkedUserId != null) {
+      saved.userId = linkedUserId;
+      sendToUser(linkedUserId, { type: 'notification' }).catch(() => {});
+    }
+  }
   await logHeartbeat(instanceId, messageCount);
   broadcastToAdmins({ type: 'instance-update' });
 
@@ -114,6 +130,8 @@ instancesRouter.post('/heartbeat', requireApiKey, ah(async (req, res) => {
     ok: true,
     enabled: saved.enabled,
     latestVersion: latestRelease?.version || null,
+    // Le bot décide seul d'envoyer (ou non) son lien d'invitation WhatsApp.
+    link: linkStateOf(saved),
     ...(pendingConfig ? { config: pendingConfig } : {}),
   });
 }));
@@ -186,12 +204,35 @@ instancesRouter.delete('/instances/:instanceId', requireAuth, requireAdmin, ah(a
   res.json({ ok: true, instanceId, deleted: true });
 }));
 
+/**
+ * "Mes bots" : uniquement les instances rattachées au compte connecté, avec
+ * une liste BLANCHE de champs (pas de commandStats, de configuration à
+ * distance ni d'identifiants d'autres instances).
+ */
+instancesRouter.get('/me/instances', requireAuth, ah(async (req, res) => {
+  const now = Date.now();
+  const rows = await listInstancesForUser(req.session.userId);
+
+  const instances = rows.map((inst) => ({
+    instanceId: inst.instanceId,
+    botName: inst.botName,
+    ownerName: inst.ownerName,
+    version: inst.version,
+    enabled: inst.enabled,
+    online: now - inst.lastSeen < OFFLINE_AFTER_MS,
+    lastSeen: inst.lastSeen,
+    uptimeSeconds: inst.uptimeSeconds === null ? null : Number(inst.uptimeSeconds),
+  }));
+
+  res.json({ instances, offlineAfterMs: OFFLINE_AFTER_MS });
+}));
+
 instancesRouter.get('/instances', requireAuth, requireAdmin, ah(async (req, res) => {
   const instances = await loadInstances();
   const now = Date.now();
 
   const list = Object.values(instances)
-    .map((inst) => ({ ...inst, online: now - inst.lastSeen < OFFLINE_AFTER_MS }))
+    .map(({ ownerHash, ...inst }) => ({ ...inst, online: now - inst.lastSeen < OFFLINE_AFTER_MS }))
     .sort((a, b) => b.lastSeen - a.lastSeen);
 
   res.json({ instances: list, offlineAfterMs: OFFLINE_AFTER_MS });

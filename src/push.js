@@ -1,6 +1,6 @@
 import webpush from 'web-push';
 import { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CONTACT_EMAIL } from './config.js';
-import { listSubscriptions, removeSubscriptionByEndpoint } from './store/pushStore.js';
+import { listSubscriptions, listSubscriptionsForUser, removeSubscriptionByEndpoint } from './store/pushStore.js';
 
 let configured = false;
 
@@ -28,13 +28,7 @@ function ensureConfigured() {
  * effacé...) — dans ce cas on le supprime nous-mêmes de la base, sinon on
  * continuerait à essayer de lui envoyer des notifications indéfiniment.
  */
-export async function sendPushToAll(payload) {
-  if (!ensureConfigured()) {
-    console.warn('⚠️  VAPID non configuré — notification push ignorée (voir DEPLOY.md).');
-    return;
-  }
-
-  const subscriptions = await listSubscriptions();
+async function deliver(subscriptions, payload) {
   if (!subscriptions.length) return;
 
   const body = JSON.stringify(payload);
@@ -55,4 +49,18 @@ export async function sendPushToAll(payload) {
       }
     })
   );
+}
+
+export async function sendPushToAll(payload) {
+  if (!ensureConfigured()) {
+    console.warn('⚠️  VAPID non configuré — notification push ignorée (voir DEPLOY.md).');
+    return;
+  }
+  await deliver(await listSubscriptions(), payload);
+}
+
+/** Comme sendPushToAll, mais uniquement vers les appareils abonnés de CE compte (ex: l'un de ses bots est hors ligne). */
+export async function sendPushToUser(userId, payload) {
+  if (!ensureConfigured()) return;
+  await deliver(await listSubscriptionsForUser(userId), payload);
 }

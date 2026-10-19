@@ -64,3 +64,14 @@ export const reactionLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Trop de réactions envoyées. Réessaie dans une minute.' },
 });
+
+// Page de liaison d'un bot (aperçu + confirmation) : un jeton fait 256 bits et
+// ne se devine pas, ce plafond sert surtout à décourager quelqu'un qui
+// martèlerait la route avec de faux jetons.
+export const linkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessaie dans quelques minutes.' },
+});

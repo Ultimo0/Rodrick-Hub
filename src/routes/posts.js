@@ -7,6 +7,7 @@ import { getReactionsSummary, setReaction, REACTION_EMOJIS } from '../store/post
 import { findUserById } from '../store/usersStore.js';
 import { broadcast } from '../realtime.js';
 import { sendPushToAll } from '../push.js';
+import { createNotification } from '../store/notificationsStore.js';
 import { ah } from '../utils/asyncHandler.js';
 import { commentLimiter, reactionLimiter } from '../middleware/rateLimit.js';
 
@@ -39,6 +40,10 @@ postsRouter.post('/posts', requireAuth, requireAdmin, ah(async (req, res) => {
 
   const post = await createPost({ title, content, category, authorId: req.session.userId });
   broadcast({ type: 'new-post', post });
+  // Historique de la cloche (voir js/notif-bell.js). Un échec ici ne doit
+  // jamais empêcher la publication d'aboutir : elle est déjà enregistrée.
+  createNotification({ type: 'post', title: 'Nouvelle publication', body: post.title, link: '/community.html' })
+    .catch((err) => console.error('Échec createNotification (post) :', err));
   sendPushToAll({
     title: 'Nouvelle publication sur Rodrick Hub',
     body: post.title,
