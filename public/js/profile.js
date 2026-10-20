@@ -32,6 +32,16 @@ const bioInputEl = document.getElementById('bioInput');
 const bioCountEl = document.getElementById('bioCount');
 const saveStatusEl = document.getElementById('saveStatus');
 
+const pNameEl = document.getElementById('pName');
+const bioTextEl = document.getElementById('bioText');
+const unreadEl = document.getElementById('pUnread');
+const editBtnEl = document.getElementById('editBtn');
+const editPanelEl = document.getElementById('editPanel');
+
+// Dernières valeurs ENREGISTRÉES : "Annuler" y revient, et l'en-tête de la
+// page les affiche (pas ce qui est en cours de frappe dans le formulaire).
+let saved = { name: '', bio: '' };
+
 const AVATAR_SIZE = 512;       // pixels — taille finale carrée envoyée à Cloudinary
 const MAX_SOURCE_FILE_BYTES = 8 * 1024 * 1024; // 8 Mo — au-delà, on refuse avant même de traiter l'image
 
@@ -53,6 +63,76 @@ function renderAvatar(user) {
   }
 }
 
+function renderIdentity(user) {
+  pNameEl.textContent = saved.name || user?.email || 'Mon profil';
+
+  if (saved.bio) {
+    bioTextEl.classList.remove('is-empty');
+    window.ProfileView.renderBio(bioTextEl, saved.bio);
+  } else {
+    // Pas de bio : une invitation qui ouvre directement l'édition.
+    bioTextEl.classList.add('is-empty');
+    bioTextEl.textContent = 'Ajoute une bio pour te présenter.';
+  }
+}
+
+function setEditing(on) {
+  editPanelEl.hidden = !on;
+  editBtnEl.setAttribute('aria-expanded', String(on));
+  profileCardEl.classList.toggle('is-editing', on);
+
+  if (on) {
+    nameInputEl.focus();
+    // Sur mobile le formulaire s'ouvre sous le pli : on l'amène à l'écran.
+    editPanelEl.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  } else {
+    // Annuler (ou fin d'enregistrement) : le formulaire revient aux valeurs enregistrées.
+    nameInputEl.value = saved.name;
+    bioInputEl.value = saved.bio;
+    bioCountEl.textContent = bioInputEl.value.length;
+    saveStatusEl.style.display = 'none';
+  }
+}
+
+editBtnEl.addEventListener('click', () => setEditing(editPanelEl.hidden));
+document.getElementById('cancelEditBtn').addEventListener('click', () => setEditing(false));
+bioTextEl.addEventListener('click', () => {
+  if (bioTextEl.classList.contains('is-empty')) setEditing(true);
+});
+
+// La pastille ouvre la cloche (les notifications y sont déjà détaillées).
+unreadEl.addEventListener('click', () => document.querySelector('.hub-bell-btn')?.click());
+
+/** Compteurs "Bots reliés / En ligne / Publications" : un échec laisse "–", jamais un faux 0. */
+async function loadStats() {
+  try {
+    const res = await fetch('/api/me/instances');
+    if (res.ok) {
+      const { instances } = await res.json();
+      document.getElementById('statBots').textContent = instances.length;
+      document.getElementById('statOnline').textContent = instances.filter((bot) => bot.online && bot.enabled).length;
+    }
+  } catch { /* on garde "–" */ }
+
+  try {
+    const res = await fetch('/api/profile/stats');
+    if (res.ok) document.getElementById('statPosts').textContent = (await res.json()).posts;
+  } catch { /* on garde "–" */ }
+}
+
+async function loadUnread() {
+  try {
+    const res = await fetch('/api/notifications');
+    if (!res.ok) return;
+    const { unread } = await res.json();
+    unreadEl.hidden = !(unread > 0);
+    if (unread > 0) {
+      unreadEl.textContent = window.ProfileView.formatBadge(unread);
+      unreadEl.setAttribute('aria-label', `${unread} notification${unread > 1 ? 's' : ''} non lue${unread > 1 ? 's' : ''}`);
+    }
+  } catch { /* pas de pastille */ }
+}
+
 async function load() {
   try {
     const res = await fetch('/api/auth/me');
@@ -64,13 +144,18 @@ async function load() {
     const user = await res.json();
     profileCardEl.style.display = 'block';
 
+    saved = { name: user.name || '', bio: user.bio || '' };
     renderAvatar(user);
-    nameInputEl.value = user.name || '';
-    bioInputEl.value = user.bio || '';
+    renderIdentity(user);
+    nameInputEl.value = saved.name;
+    bioInputEl.value = saved.bio;
     bioCountEl.textContent = bioInputEl.value.length;
     document.getElementById('pRole').textContent = user.role === 'admin' ? 'Administrateur' : 'Membre';
     document.getElementById('pEmail').textContent = user.email;
     document.getElementById('pSince').textContent = new Date(user.createdAt).toLocaleDateString('fr-FR');
+
+    loadStats();
+    loadUnread();
   } catch {
     notLoggedInEl.style.display = 'block';
     notLoggedInEl.textContent = 'Impossible de contacter le serveur.';
@@ -212,7 +297,11 @@ document.getElementById('saveProfileBtn').addEventListener('click', async () => 
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Échec de l\'enregistrement.');
 
-    showStatus(saveStatusEl, 'Modifications enregistrées.', 'success');
+    saved = { name, bio: bioInputEl.value };
+    renderIdentity();
+    setEditing(false);
+    // Le panneau est refermé : la confirmation s'affiche sous l'en-tête.
+    showStatus(avatarStatusEl, 'Profil mis à jour.', 'success');
   } catch (err) {
     showStatus(saveStatusEl, err.message || 'Une erreur est survenue.', 'error');
   }

@@ -4,10 +4,16 @@ import { requireAuth } from '../middleware/requireAuth.js';
 import { deleteAccountLimiter } from '../middleware/rateLimit.js';
 import { updateProfile, findUserById, countAdmins, deleteUser } from '../store/usersStore.js';
 import { ah } from '../utils/asyncHandler.js';
+import { countPostsByAuthor } from '../store/postsStore.js';
 
 export const profileRouter = Router();
 
 const BIO_MAX_LENGTH = 280;
+
+/** Compteurs de SA page de profil (les bots viennent de GET /api/me/instances). */
+profileRouter.get('/profile/stats', requireAuth, ah(async (req, res) => {
+  res.json({ posts: await countPostsByAuthor(req.session.userId) });
+}));
 
 /**
  * Toujours req.session.userId comme cible — JAMAIS un id pris dans le

@@ -53,3 +53,9 @@ export async function getLatestTimestamp() {
   const { rows } = await pool.query('SELECT MAX("createdAt")::bigint AS latest FROM posts');
   return rows[0].latest || 0;
 }
+
+/** Nombre de publications écrites par ce compte (compteur du profil). */
+export async function countPostsByAuthor(userId) {
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM posts WHERE "authorId" = $1', [userId]);
+  return rows[0].count;
+}

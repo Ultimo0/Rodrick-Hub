@@ -102,7 +102,7 @@ button { color: inherit; }
 
 .auth-status { margin-left: 0; }
 .hub-nav .hub-bell + .auth-status { margin-left: 0; }
-.hub-nav-links { margin-right: auto; }
+.hub-nav-links, #hubNavLinks { margin-right: auto; }
 .landing-nav .hub-bell { margin-left: auto; }
 
 /* ---------- Cloche ---------- */
@@ -132,8 +132,8 @@ button { color: inherit; }
 
 .hub-bell-badge {
   position: absolute;
-  top: 4px;
-  right: 3px;
+  top: 0;
+  right: -6px;
   box-sizing: border-box;
   min-width: 18px;
   height: 18px;
@@ -370,17 +370,33 @@ button { color: inherit; }
   .hub-switch-track, .hub-switch-track::after { transition: none; }
 }
 
+/* ---------- Avatar seul en haut, partout ----------
+   Le nom reste dans la page (Profil) et pour les lecteurs d'écran ; l'afficher
+   à côté de l'avatar faisait déborder la barre sur les pages étroites. */
+
+.auth-status a.nav-profile-link { flex-direction: row; font-size: 0; gap: 0; padding: 0; }
+.nav-profile-link .nav-avatar,
+.nav-profile-link .nav-avatar-fallback { width: 34px; height: 34px; }
+.nav-profile-link .nav-avatar-fallback { font-size: 0.95rem; }
+.auth-status { padding: 6px 4px 6px 0; gap: 8px; }
+
+/* Pages étroites sur ordinateur (420 px) : cloche et avatar sur la 1re ligne,
+   les onglets passent dessous au lieu de déborder. */
+@media (min-width: 641px) {
+  .page-narrow > .hub-nav { flex-wrap: wrap; }
+  /* Le conteneur des onglets est un bloc dont les liens sont collés les uns aux
+     autres (aucun espace entre eux dans le DOM) : le navigateur n'a donc aucun
+     endroit où couper la ligne. En flex avec retour à la ligne, si. */
+  .page-narrow > .hub-nav #hubNavLinks { order: 3; flex: 1 0 100%; min-width: 0; display: flex; flex-wrap: wrap; }
+  .page-narrow > .hub-nav #hubNavLinks a { padding: 8px 12px; }
+  .page-narrow > .hub-nav .hub-bell { margin-left: auto; }
+}
+
 /* ---------- Mobile : avatar seul en haut, barre d'onglets façon appli ---------- */
 
 @media (max-width: 640px) {
   .page > .hub-nav { min-height: 52px; }
 
-  /* L'avatar suffit : le nom reste lisible sur la page Profil. */
-  .auth-status a.nav-profile-link { flex-direction: row; font-size: 0; gap: 0; padding: 0; }
-  .nav-profile-link .nav-avatar,
-  .nav-profile-link .nav-avatar-fallback { width: 34px; height: 34px; }
-  .nav-profile-link .nav-avatar-fallback { font-size: 0.95rem; }
-  .auth-status { padding: 6px 4px 6px 0; gap: 8px; }
   .auth-status .admin-nav-link { font-size: 0.78rem; }
 
   /* Le panneau se cale sous la barre, sur presque toute la largeur. */
@@ -452,3 +468,119 @@ button { color: inherit; }
 .link-action-primary { background: var(--violet); border-color: var(--violet); color: #fff; }
 .link-action:disabled { opacity: 0.6; cursor: wait; }
 .link-action:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* ---------- Page Profil (profile.html) ----------
+   Disposition inspirée d'un profil d'appli vidéo : nom et pastille à gauche,
+   avatar à droite, trois compteurs, bio, un bouton en pilule. L'édition est
+   cachée derrière le crayon. Les anciennes règles de style.css (.profile-card,
+   .avatar-*, .role-badge...) restent la base : on ne fait que les réorganiser. */
+
+.profile-card.pf {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 4px 0 24px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.pf-topbar { display: flex; margin-bottom: 4px; }
+
+.pf-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.pf-icon-btn:hover, .pf.is-editing .pf-icon-btn { background: var(--card-hover); }
+.pf-icon-btn:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.pf-icon-btn svg { width: 24px; height: 24px; }
+
+.pf-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 4px 0 18px; }
+.pf-identity { flex: 1; min-width: 0; }
+.pf-name-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pf-name { margin: 0; font-family: var(--font-display); font-size: 1.55rem; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.pf-role { margin-top: 8px; display: inline-block; }
+
+.pf-unread {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--violet);
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pf-unread[hidden] { display: none; }
+
+.pf-avatar, .pf-avatar .avatar-img { width: 96px; height: 96px; }
+.pf-avatar { flex-shrink: 0; }
+
+.pf-stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 28px; margin: 18px 0; }
+.pf-stat { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
+.pf-stat strong { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+.pf-stat span { font-size: 0.84rem; color: var(--muted); }
+.pf-stat:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; border-radius: 6px; }
+
+.pf-bio { margin: 0 0 16px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.pf-bio a { color: var(--sky); font-weight: 600; word-break: break-all; }
+.pf-bio.is-empty { color: var(--muted); cursor: pointer; }
+
+.pf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  padding: 10px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pf-pill svg { width: 20px; height: 20px; }
+.pf-pill:hover { background: var(--card-hover); }
+.pf-pill:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+.pf-edit {
+  margin: 0 0 22px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.pf-edit[hidden] { display: none; }
+.pf-edit .profile-label { display: block; margin-bottom: 6px; }
+.pf-input { width: 100%; margin-bottom: 14px; text-align: left; }
+.pf-edit-actions { display: flex; gap: 10px; margin-top: 4px; }
+.pf-edit-actions .save-btn { flex: 1; width: auto; margin: 0; background: var(--violet); border-color: var(--violet); color: #fff; }
+
+.pf-secondary {
+  padding: 12px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pf-section { margin: 0 0 20px; }
+.pf-meta { margin-bottom: 20px; }
+
+.danger-zone summary { cursor: pointer; padding: 8px 0; color: var(--coral); font-weight: 700; }
+.danger-zone[open] summary { margin-bottom: 8px; }

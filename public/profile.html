@@ -36,15 +36,26 @@
       Tu n'es pas connecté(e). <a href="login.html">Se connecter</a>
     </div>
 
-    <div id="profileCard" class="profile-card" style="display:none">
+    <div id="profileCard" class="profile-card pf" style="display:none">
 
-      <!-- Avatar : image de fond (visible si avatarUrl existe) OU initiale
-           sur fond coloré (fallback) — jamais les deux en même temps. Le
-           bouton crayon superposé déclenche le vrai <input type="file">,
-           caché : on ne montre jamais la case moche par défaut du
-           navigateur, juste ce déclencheur stylé. -->
-      <div class="profile-hero">
-        <div class="avatar-wrap">
+      <div class="pf-topbar">
+        <button id="editBtn" class="pf-icon-btn" type="button" aria-label="Modifier mon profil" aria-expanded="false" aria-controls="editPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+        </button>
+      </div>
+
+      <!-- Nom à gauche, avatar à droite. L'avatar garde ses identifiants et son
+           bouton photo : envoi immédiat dès le choix du fichier (voir profile.js). -->
+      <div class="pf-hero">
+        <div class="pf-identity">
+          <div class="pf-name-row">
+            <h2 id="pName" class="pf-name"></h2>
+            <button id="pUnread" class="pf-unread" type="button" hidden></button>
+          </div>
+          <span id="pRole" class="role-badge pf-role"></span>
+        </div>
+
+        <div class="avatar-wrap pf-avatar">
           <img id="avatarImg" class="avatar-img" alt="" style="display:none" />
           <span id="avatarFallback" class="avatar-img avatar-fallback"></span>
           <button id="avatarEditBtn" class="avatar-edit-btn" type="button" aria-label="Changer la photo de profil" title="Changer la photo de profil">
@@ -55,46 +66,67 @@
           </button>
           <input id="avatarInput" type="file" accept="image/*" hidden />
         </div>
-
-        <input id="nameInput" class="profile-name-input" type="text" maxlength="60" placeholder="Ton nom" />
-        <span id="pRole" class="role-badge"></span>
       </div>
 
       <div id="avatarStatus" class="field-status" style="display:none"></div>
 
-      <div class="profile-section">
+      <div class="pf-stats">
+        <a class="pf-stat" href="index.html"><strong id="statBots">–</strong><span>Bots reliés</span></a>
+        <a class="pf-stat" href="index.html"><strong id="statOnline">–</strong><span>En ligne</span></a>
+        <a class="pf-stat" href="community.html"><strong id="statPosts">–</strong><span>Publications</span></a>
+      </div>
+
+      <p id="bioText" class="pf-bio"></p>
+
+      <a class="pf-pill" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4"/><circle cx="12" cy="3.5" r="1"/><circle cx="9" cy="13.5" r="1"/><circle cx="15" cy="13.5" r="1"/></svg>
+        Mes bots
+      </a>
+
+      <!-- Édition : cachée tant qu'on n'a pas touché au crayon. -->
+      <div id="editPanel" class="pf-edit" hidden>
+        <label class="profile-label" for="nameInput">Nom</label>
+        <input id="nameInput" class="profile-name-input pf-input" type="text" maxlength="60" placeholder="Ton nom" />
+
         <label class="profile-label" for="bioInput">Bio</label>
         <textarea id="bioInput" class="bio-input" maxlength="280" rows="3" placeholder="Dis-en un peu plus sur toi..."></textarea>
         <div class="bio-counter"><span id="bioCount">0</span>/280</div>
+
+        <div class="pf-edit-actions">
+          <button id="saveProfileBtn" class="save-btn" type="button">Enregistrer</button>
+          <button id="cancelEditBtn" class="pf-secondary" type="button">Annuler</button>
+        </div>
+        <div id="saveStatus" class="field-status" style="display:none"></div>
       </div>
 
-      <div class="profile-row"><span class="profile-label">Email</span><span id="pEmail"></span></div>
-      <div class="profile-row"><span class="profile-label">Membre depuis</span><span id="pSince"></span></div>
-
-      <div class="profile-section">
+      <div class="pf-section">
         <label class="profile-label">Notifications</label>
         <p class="notif-hint">Sois prévenu(e) dès qu'une nouvelle version ou une nouvelle publication sort — même quand le Hub n'est pas ouvert.</p>
         <button id="notifToggleBtn" class="notif-toggle-btn" type="button">Activer les notifications</button>
-        <p class="notif-hint notif-ios-hint" style="display:none">Sur iPhone : installe d'abord le Hub sur ton écran d'accueil (partager → "Sur l'écran d'accueil") avant d'activer les notifications — c'est une limite d'Apple, pas du Hub.</p>
+        <p class="notif-hint notif-ios-hint" style="display:none">Sur iPhone : installe d'abord le Hub sur ton écran d'accueil (partager → "Sur l'écran d'accueil") avant d'activer les notifications.</p>
         <div id="notifStatus" class="field-status" style="display:none"></div>
       </div>
 
-      <button id="saveProfileBtn" class="save-btn">Enregistrer les modifications</button>
-      <div id="saveStatus" class="field-status" style="display:none"></div>
+      <div class="pf-meta">
+        <div class="profile-row"><span class="profile-label">Email</span><span id="pEmail"></span></div>
+        <div class="profile-row"><span class="profile-label">Membre depuis</span><span id="pSince"></span></div>
+      </div>
 
-      <button id="logoutBtn">Se déconnecter</button>
+      <button id="logoutBtn" type="button">Se déconnecter</button>
 
-      <div class="danger-zone">
-        <label class="profile-label" for="deletePasswordInput">Supprimer mon compte</label>
+      <details class="danger-zone">
+        <summary>Supprimer mon compte</summary>
         <p class="notif-hint">Action définitive : ton compte et tes publications dans la Communauté seront supprimés, sans possibilité de retour en arrière.</p>
+        <label class="profile-label" for="deletePasswordInput">Mot de passe</label>
         <input id="deletePasswordInput" type="password" placeholder="Ton mot de passe, pour confirmer" autocomplete="current-password" />
         <button id="deleteAccountBtn" class="btn-danger" type="button">Supprimer définitivement mon compte</button>
         <div id="deleteStatus" class="field-status" style="display:none"></div>
-      </div>
+      </details>
     </div>
   </div>
 
   <script src="js/push-notifications.js"></script>
+  <script src="js/profile-view.js"></script>
   <script src="js/profile.js"></script>
   <script src="js/realtime.js"></script>
   <script src="js/nav.js"></script>

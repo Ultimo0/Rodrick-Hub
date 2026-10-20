@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.0
+
+### Page Profil refaite
+- **Nouvelle disposition** inspirée d'un profil d'appli vidéo : nom à gauche avec une pastille des notifications non lues (un appui ouvre la cloche), avatar à droite avec son bouton photo, rôle sous le nom, trois compteurs (**Bots reliés**, **En ligne**, **Publications**), bio, et un bouton en pilule « Mes bots ».
+- **Édition derrière le crayon** : nom et bio ne s'affichent plus en champs ouverts. Le crayon ouvre le formulaire, « Annuler » revient aux valeurs enregistrées, et l'en-tête se met à jour dès l'enregistrement.
+- **Bio avec liens cliquables** : les adresses http(s) deviennent des liens (ouverts dans un nouvel onglet, sans transmettre l'origine), la ponctuation de fin de phrase n'en fait pas partie, et le reste n'est jamais interprété comme du HTML. Sans bio, une invitation ouvre directement l'édition.
+- **Compteurs honnêtes** : si un compteur ne peut pas être lu, il affiche « – » et non un faux zéro ; un bot désactivé n'est pas compté « en ligne ».
+- **Suppression du compte** repliée dans une section « Supprimer mon compte » (même procédure qu'avant).
+- Nouvelle route `GET /api/profile/stats` (nombre de publications du compte connecté).
+
+### Barre du haut
+- **Avatar seul** sur toutes les pages (le nom reste lisible pour les lecteurs d'écran et sur le Profil) : avec la cloche, le nom faisait déborder la barre.
+- Sur ordinateur, les pages en colonne étroite (420 px) placent cloche et avatar sur la première ligne et les onglets en dessous, au lieu de déborder.
+- La pastille de la cloche ne cache plus l'icône.
+
 ## 0.11.0
 
 ### Liaison automatique des bots aux comptes
